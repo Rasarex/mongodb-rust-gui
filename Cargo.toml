@@ -1,0 +1,14 @@
+[package]
+name = "wypozyczalnia"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mongodb = '2.0.2'
+tokio = {version="1",features=["full"]}
+druid = {version='0.7.0',features=["im"]}
+druid-wigdet-nursery = ""
+futures = '0.3'
+serde = '1.0'
