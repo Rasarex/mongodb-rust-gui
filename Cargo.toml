@@ -9,6 +9,5 @@ edition = "2021"
 mongodb = '2.0.2'
 tokio = {version="1",features=["full"]}
 druid = {version='0.7.0',features=["im"]}
-druid-wigdet-nursery = ""
 futures = '0.3'
 serde = '1.0'

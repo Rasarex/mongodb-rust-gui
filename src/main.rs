@@ -1,7 +1,7 @@
 use futures::stream::TryStreamExt;
-use mongodb::bson::{self, doc, Bson};
-use mongodb::options::{ClientOptions, Credential, FindOptions, ResolverConfig};
-use std::env;
+use futures::StreamExt;
+use mongodb::bson::{doc, Bson};
+use mongodb::options::FindOptions;
 use std::error::Error;
 use std::result::Result;
 use tokio;
@@ -10,7 +10,7 @@ use gui::*;
 mod mongodriver;
 use mongodriver::*;
 async fn amain() -> Result<(), Box<dyn Error>> {
-    let client = get_client("Sample".to_owned(), "123".to_owned())?;
+    let client = get_client("superUser".to_owned(), "12345".to_owned())?;
     let db = client.database("wypozyczalnia");
     // for col_name in db.list_collection_names(None).await? {
     let find_options = FindOptions::builder().projection(doc! { "_id": 0 }).build();

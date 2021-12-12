@@ -1,12 +1,10 @@
 use futures::executor;
 use futures::stream::TryStreamExt;
-use futures::FutureExt;
-use mongodb::bson::{self, doc, Bson};
-use mongodb::options::{ClientOptions, Credential, FindOptions, ResolverConfig, ServerAddress};
+use mongodb::bson::{self, doc};
+use mongodb::options::FindOptions;
+use mongodb::options::{ClientOptions, Credential, ServerAddress};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
-use std::ascii::AsciiExt;
-use std::env;
 use std::error::Error;
 use std::fmt::*;
 use std::result::Result;
@@ -25,14 +23,16 @@ pub struct Borrows {
     pub end_of_borrow_date: String,
     pub return_date: String,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Movies {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<bson::oid::ObjectId>,
     pub title: String,
     pub director: String,
     pub actors: Vec<String>,
     pub genre: Vec<String>,
     pub score: f64,
-    pub length: f32,
+    pub length: Option<f32>,
     pub short_desc: String,
 }
 const AUTH_SOURCE: &'static str = "wypozyczalnia";
@@ -52,6 +52,16 @@ pub fn get_client(
         .build();
     let client = mongodb::Client::with_options(options);
     client
+}
+pub async fn get_movies(db: &mongodb::Database) -> Result<Vec<Movies>, mongodb::error::Error> {
+    use mongodb::bson::Bson;
+    let movies = db.collection::<Movies>("filmy");
+    let mut cursor = movies.find(None, None).await?;
+    let mut movies: Vec<Movies> = Vec::new();
+    while let Some(doc) = cursor.try_next().await? {
+        movies.push(doc);
+    }
+    Ok(movies)
 }
 pub fn is_admin(username: &String, db: &Database) -> Result<bool, Box<dyn Error>> {
     let res: bson::Document = executor::block_on(db.run_command(doc! {"usersInfo": 1}, None))?;

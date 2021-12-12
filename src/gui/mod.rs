@@ -1,7 +1,14 @@
-use super::mongodriver::is_admin;
+use std::sync::Arc;
+
+use super::mongodriver::{get_movies, is_admin};
 use druid::widget::{Align, Button, Flex, Label, TextBox, ViewSwitcher};
-use druid::{AppLauncher, Data, Env, Lens, LocalizedString, Widget, WidgetExt, WindowDesc};
-use std::ascii::AsciiExt;
+use druid::{
+    AppLauncher, Color, Data, Lens, LocalizedString, UnitPoint, Widget, WidgetExt, WindowDesc,
+};
+use futures::executor;
+use mongodb::bson::doc;
+use mongodb::options::FindOptions;
+
 const VERTICAL_WIDGET_SPACING: f64 = 20.0;
 const TEXT_BOX_WIDTH: f64 = 200.0;
 const WINDOW_TITLE: LocalizedString<LoginState> = LocalizedString::new("Hello World");
@@ -12,25 +19,31 @@ enum WindowMode {
     AdminScreen,
     UserScreen,
 }
+use mongodb::bson::oid::ObjectId;
 #[derive(Clone, Data, Lens)]
 struct LoginState {
     login: String,
     pwd: String,
     #[data(ignore)]
     db: mongodb::Database,
+    #[data(ignore)]
+    rented: Vec<ObjectId>,
     mode: WindowMode,
+    error: String,
 }
 
 pub fn prompt_login(db: mongodb::Database) {
     let main_window = WindowDesc::new(build_root_widget)
         .title(WINDOW_TITLE)
-        .window_size((400.0, 400.0));
+        .window_size((900.0, 600.0));
 
     // create the initial app state
     let initial_state = LoginState {
         login: "".into(),
         pwd: "".into(),
         db,
+        error: "".to_string(),
+        rented: Vec::new(),
         mode: WindowMode::LoginScreen,
     };
 
@@ -38,6 +51,62 @@ pub fn prompt_login(db: mongodb::Database) {
     AppLauncher::with_window(main_window)
         .launch(initial_state)
         .expect("Failed to launch application");
+}
+fn get_user_prompt(db: &mongodb::Database) -> impl Widget<LoginState> {
+    let mut error_label = Label::new(|data: &LoginState, _env: &_| format!("{}", data.error));
+    let background = Color::from_hex_str("00ff00").unwrap();
+    error_label.set_text_color(Color::from_hex_str("ff0000").unwrap());
+    // let buttons_row = Flex::row();
+    let maybe_movies = executor::block_on(get_movies(db));
+    let mut movies_box = Flex::column();
+    if let Ok(movies) = maybe_movies {
+        for movie in movies {
+            let title_label = Label::<LoginState>::new(format!("tytuł:{}", movie.title));
+            let genre = Label::<LoginState>::new(format!("Gatunki: {:?}", movie.genre));
+            let length = Label::<LoginState>::new(format!("długość {:?}", movie.length));
+            let actors = Label::<LoginState>::new(format!("aktorzy {:?}", movie.actors));
+            let score = Label::<LoginState>::new(format!("ocena {:?}", movie.score));
+            let short_desc =
+                Label::<LoginState>::new(format!("krótki opis {:?}", movie.short_desc));
+            use druid::widget::SizedBox;
+            let mut movie_box = Flex::column()
+                .with_child(title_label)
+                .with_child(genre)
+                .with_child(length)
+                .with_child(actors)
+                .with_child(score)
+                .with_child(short_desc);
+
+            let get_button =
+                Button::new("Wypożycz").on_click(move |_ctx, data: &mut LoginState, _env| {
+                    if data.rented.len() == 3 {
+                        data.error = String::from("Można wypożyczyć maksymalnie 3");
+                    } else if data.rented.contains(&movie.id.unwrap()) {
+                        data.error = String::from("Ten film już został wypożyczony")
+                    } else {
+                        data.rented.push(movie.id.unwrap())
+                    }
+                });
+
+            movie_box.add_default_spacer();
+            movie_box.add_child(get_button);
+            movies_box
+                .add_child(Scroll::new(movie_box.fix_height(60.0).fix_width(400.0)).vertical());
+        }
+    } else if let Err(err) = maybe_movies {
+        error_label.set_text(err.to_string());
+    }
+    use druid::widget::Scroll;
+    let layout = Flex::column()
+        .with_child(
+            Scroll::new(druid::widget::Container::new(
+                movies_box.fix_size(400.0, 700.0),
+            ))
+            .vertical()
+            .border(background, 2.0),
+        )
+        .with_child(error_label);
+    layout
 }
 fn get_login_prompt() -> impl Widget<LoginState> {
     let login_textbox = TextBox::new()
@@ -75,9 +144,9 @@ fn build_root_widget() -> impl Widget<LoginState> {
     // a textbox that modifies `name`.
     let view_switcher = ViewSwitcher::new(
         |data: &LoginState, _env| data.mode,
-        |selector, _data, _env| match selector {
+        |selector, data, _env| match selector {
             WindowMode::LoginScreen => Box::new(get_login_prompt()),
-            WindowMode::UserScreen => Box::new(Label::new("User").center()),
+            WindowMode::UserScreen => Box::new(get_user_prompt(&data.db)),
             WindowMode::AdminScreen => Box::new(Label::new("Admin").center()),
             _ => Box::new(Label::new("Unknown").center()),
         },
