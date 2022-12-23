@@ -1,7 +1,6 @@
 use futures::executor;
 use futures::stream::TryStreamExt;
 use mongodb::bson::{self, doc};
-use mongodb::options::FindOptions;
 use mongodb::options::{ClientOptions, Credential, ServerAddress};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
