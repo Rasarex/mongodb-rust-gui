@@ -2497,6 +2497,7 @@ dependencies = [
 name = "wypozyczalnia"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "druid",
  "futures",
  "mongodb",

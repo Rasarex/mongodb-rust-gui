@@ -53,8 +53,32 @@ pub fn get_client(
     let client = mongodb::Client::with_options(options);
     client
 }
+
+use mongodb::bson::oid::ObjectId;
+pub async fn rent_movies(
+    db: &mongodb::Database,
+    movies: Vec<ObjectId>,
+) -> Result<(), mongodb::error::Error> {
+    use chrono::{DateTime, Utc}; // 0.4.15
+    use std::time::{Duration, SystemTime};
+
+    for movie in movies {
+        let now = SystemTime::now();
+        let two_weeks = Duration::new(2 * 7 * 24 * 60 * 60, 0);
+        let end = now + two_weeks;
+        let end: DateTime<Utc> = end.into();
+        let end = end.to_rfc3339();
+        let now: DateTime<Utc> = now.into();
+        let now = now.to_rfc3339();
+
+        let document = doc! {"_id": movie,"begin_date":now,"end_date":end,"actual_end_date":""};
+        let col = db.collection::<mongodb::bson::Document>("wypozyczenia");
+        // col.insert_one(document, doc! {});
+    }
+
+    Ok(())
+}
 pub async fn get_movies(db: &mongodb::Database) -> Result<Vec<Movies>, mongodb::error::Error> {
-    use mongodb::bson::Bson;
     let movies = db.collection::<Movies>("filmy");
     let mut cursor = movies.find(None, None).await?;
     let mut movies: Vec<Movies> = Vec::new();
@@ -63,7 +87,7 @@ pub async fn get_movies(db: &mongodb::Database) -> Result<Vec<Movies>, mongodb::
     }
     Ok(movies)
 }
-pub fn is_admin(username: &String, db: &Database) -> Result<bool, Box<dyn Error>> {
+pub fn is_admin(username: &String, db: &Database) -> std::result::Result<bool, Box<dyn Error>> {
     let res: bson::Document = executor::block_on(db.run_command(doc! {"usersInfo": 1}, None))?;
     for user in res.get("users").unwrap().as_array().unwrap() {
         let user_doc = user.as_document().unwrap();

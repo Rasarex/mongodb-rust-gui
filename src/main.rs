@@ -1,5 +1,4 @@
 use futures::stream::TryStreamExt;
-use futures::StreamExt;
 use mongodb::bson::{doc, Bson};
 use mongodb::options::FindOptions;
 use std::error::Error;
