@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::mongodriver::{get_movies, is_admin};
 use druid::widget::{Align, Button, Flex, Label, TextBox, ViewSwitcher};
 use druid::{
@@ -7,7 +5,6 @@ use druid::{
 };
 use futures::executor;
 use mongodb::bson::doc;
-use mongodb::options::FindOptions;
 
 const VERTICAL_WIDGET_SPACING: f64 = 20.0;
 const TEXT_BOX_WIDTH: f64 = 200.0;
